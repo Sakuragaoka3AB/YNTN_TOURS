@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YNTN TOURS <3-A.B> - リアルタイム受付・キャンセル管理</title>
+    <title>YNTN TOURS 3-A.B - リアルタイム受付・キャンセル管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-[#0b0f19] text-slate-100 min-h-screen flex flex-col selection:bg-amber-500 selection:text-black">
@@ -36,16 +36,14 @@
                 <p id="current-msg" class="text-blue-200/80 text-sm">まもなくご搭乗です。フライトゲートへお進みください！</p>
             </div>
 
-            <!-- キャンセル・行けなくなったとき -->
+            <!-- キャンセル・行けなくなったとき（直接入力版） -->
             <div class="bg-slate-900/90 border border-amber-500/30 rounded-2xl p-5 shadow-lg relative">
                 <h3 class="text-amber-400 font-bold mb-2 flex items-center gap-2">
                     <span>⚠️</span> フライト（時間）に行けなくなった方へ
                 </h3>
-                <p class="text-sm text-slate-300 mb-4">予約した時間に行けなくなった場合は、下のリストから自分の番号を選んでキャンセルボタンを押してください。次の宇宙飛行士に枠が譲られます。</p>
+                <p class="text-sm text-slate-300 mb-4">予約した時間に行けなくなった場合は、自分の番号を直接入力してキャンセルボタンを押してください。次の宇宙飛行士に枠が譲られます。</p>
                 <div class="flex gap-2">
-                    <select id="cancel-select" class="bg-slate-950 border border-amber-500/40 rounded-lg px-3 py-2 text-white flex-1 focus:outline-none focus:ring-2 focus:ring-amber-500">
-                        <option value="">キャンセルする番号を選ぶ</option>
-                    </select>
+                    <input type="text" id="cancel-input" placeholder="例: 15" class="bg-slate-950 border border-amber-500/40 rounded-lg px-3 py-2 text-white flex-1 focus:outline-none focus:ring-2 focus:ring-amber-500">
                     <button onclick="requestCancel()" class="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-extrabold px-5 py-2 rounded-lg shadow-md transition">キャンセルする</button>
                 </div>
             </div>
@@ -79,14 +77,24 @@
             <div class="bg-slate-900 border border-blue-900/60 rounded-2xl p-6 shadow-xl space-y-6">
                 <div class="flex justify-between items-center border-b border-slate-800 pb-4">
                     <h2 class="text-lg font-bold text-amber-400">🛠️ クルー（運営スタッフ）用 コントロールパネル</h2>
-                    <button onclick="resetData()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 px-3 py-1.5 rounded transition">データをリセット（1〜300）</button>
+                    <button onclick="resetData()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 px-3 py-1.5 rounded transition">データをリセット</button>
                 </div>
 
-                <!-- 番号の追加 -->
+                <!-- まとめて番号を追加する便利ボタン -->
+                <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <label class="text-sm font-semibold text-blue-200">⚡ まるごと一括追加（おすすめ）</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="addBatch(1, 50)" class="bg-blue-900 hover:bg-blue-800 text-blue-100 text-xs font-bold px-3 py-2 rounded border border-blue-700">1〜50を追加</button>
+                        <button onclick="addBatch(51, 100)" class="bg-blue-900 hover:bg-blue-800 text-blue-100 text-xs font-bold px-3 py-2 rounded border border-blue-700">51〜100を追加</button>
+                        <button onclick="addBatch(101, 150)" class="bg-blue-900 hover:bg-blue-800 text-blue-100 text-xs font-bold px-3 py-2 rounded border border-blue-700">101〜150を追加</button>
+                    </div>
+                </div>
+
+                <!-- 個別・自由な番号の追加 -->
                 <div class="space-y-2">
-                    <label class="text-sm font-semibold text-blue-200">搭乗番号を一括または個別で追加</label>
+                    <label class="text-sm font-semibold text-blue-200">番号を個別・自由に指定して追加</label>
                     <div class="flex gap-2">
-                        <input type="text" id="add-number-input" placeholder="例: 301, 302, 303" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white flex-1 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <input type="text" id="add-number-input" placeholder="例: 15, 20, 25" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white flex-1 focus:outline-none focus:ring-2 focus:ring-amber-500">
                         <button onclick="addNumbers()" class="bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-bold px-5 py-2 rounded-lg shadow transition">追加する</button>
                     </div>
                 </div>
@@ -104,7 +112,7 @@
 
                 <!-- 手動ステータス管理リスト -->
                 <div class="space-y-2">
-                    <label class="text-sm font-semibold text-blue-200">全番号ステータス管理（クリックで切替）</label>
+                    <label class="text-sm font-semibold text-blue-200">全番号ステータス管理（終わった人は削除できます）</label>
                     <div id="admin-number-table" class="bg-slate-950 border border-slate-800 rounded-xl p-3 max-h-60 overflow-y-auto space-y-2">
                         <!-- 動的生成 -->
                     </div>
@@ -120,12 +128,9 @@
 
     <!-- JavaScript 制御ロジック -->
     <script>
-        // デフォルトで1〜300番を作成
-        const defaultWaiting = Array.from({length: 300}, (_, i) => String(i + 1));
-
         let appData = JSON.parse(localStorage.getItem('yntn_tours_data')) || {
             current: '未設定',
-            waiting: defaultWaiting,
+            waiting: [],
             canceled: []
         };
 
@@ -158,24 +163,15 @@
 
             const waitingListEl = document.getElementById('waiting-list');
             waitingListEl.innerHTML = '';
-            
-            const cancelSelect = document.getElementById('cancel-select');
-            cancelSelect.innerHTML = '<option value="">キャンセルする番号を選ぶ</option>';
 
             if (appData.waiting.length === 0) {
-                waitingListEl.innerHTML = '<span class="text-xs text-slate-500">待ち番号はありません</span>';
+                waitingListEl.innerHTML = '<span class="text-xs text-slate-500">待ち番号はありません（運営モードから追加してください）</span>';
             } else {
                 appData.waiting.forEach(num => {
                     const badge = document.createElement('span');
                     badge.className = "bg-blue-950 text-blue-200 px-3 py-1 rounded-lg text-sm font-bold border border-blue-800/60 shadow-sm";
                     badge.textContent = num;
                     waitingListEl.appendChild(badge);
-
-                    // 「番」をつけずに数字だけにする
-                    const option = document.createElement('option');
-                    option.value = num;
-                    option.textContent = num;
-                    cancelSelect.appendChild(option);
                 });
             }
             document.getElementById('waiting-count').textContent = appData.waiting.length + '件';
@@ -203,19 +199,18 @@
             if (allNums.length === 0) {
                 adminTable.innerHTML = '<div class="text-xs text-slate-500 p-2">登録されている番号はありません</div>';
             } else {
-                // 数値として正しく並び替えられるようにする
                 allNums.sort((a, b) => Number(a) - Number(b)).forEach(num => {
                     const isCanceled = appData.canceled.includes(num);
                     const row = document.createElement('div');
                     row.className = "flex justify-between items-center bg-slate-900 p-2 rounded-lg border border-slate-800 text-sm";
                     row.innerHTML = `
-                        <span class="font-bold text-white">No. ${num}</span>
+                        <span class="font-bold text-white">${num}</span>
                         <div class="space-x-1">
                             <span class="text-xs px-2 py-1 rounded ${isCanceled ? 'bg-amber-950 text-amber-300 border border-amber-800/50' : 'bg-blue-950 text-blue-300 border border-blue-800/50'}">
                                 ${isCanceled ? 'キャンセル済み' : '受付待ち'}
                             </span>
                             <button onclick="toggleStatus('${num}')" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300 border border-slate-700">切替</button>
-                            <button onclick="removeNumber('${num}')" class="text-xs bg-rose-950 hover:bg-rose-900 px-2 py-1 rounded text-rose-300 border border-rose-900/50">削除</button>
+                            <button onclick="removeNumber('${num}')" class="text-xs bg-rose-950 hover:bg-rose-900 px-2 py-1 rounded text-rose-300 border border-rose-900/50">終わったので消す</button>
                         </div>
                     `;
                     adminTable.appendChild(row);
@@ -224,10 +219,16 @@
         }
 
         function requestCancel() {
-            const select = document.getElementById('cancel-select');
-            const target = select.value;
+            const input = document.getElementById('cancel-input');
+            const target = input.value.trim();
             if (!target) {
-                alert('キャンセルする番号を選択してください。');
+                alert('キャンセルする番号を入力してください。（例: 15）');
+                return;
+            }
+
+            // 待ちリストに存在するか確認
+            if (!appData.waiting.includes(target)) {
+                alert(`${target}番はすでに存在しないか、呼び出し済み・キャンセル済みです。`);
                 return;
             }
 
@@ -236,6 +237,7 @@
                 if (!appData.canceled.includes(target)) {
                     appData.canceled.push(target);
                 }
+                input.value = '';
                 saveData();
                 alert(`${target}番のキャンセルを受け付けました。ご協力ありがとうございます！`);
             }
@@ -249,6 +251,17 @@
             const nextNum = appData.waiting.shift();
             appData.current = nextNum;
             saveData();
+        }
+
+        function addBatch(start, end) {
+            for (let i = start; i <= end; i++) {
+                const n = String(i);
+                if (!appData.waiting.includes(n) && !appData.canceled.includes(n) && appData.current !== n) {
+                    appData.waiting.push(n);
+                }
+            }
+            saveData();
+            alert(`${start}番〜${end}番を追加しました！`);
         }
 
         function addNumbers() {
@@ -278,7 +291,7 @@
         }
 
         window.removeNumber = function(num) {
-            if (confirm(`${num}番を完全に削除しますか？`)) {
+            if (confirm(`${num}番をリストから削除しますか？`)) {
                 appData.waiting = appData.waiting.filter(n => n !== num);
                 appData.canceled = appData.canceled.filter(n => n !== num);
                 if (appData.current === num) appData.current = '未設定';
@@ -287,12 +300,8 @@
         }
 
         function resetData() {
-            if (confirm('すべてのデータを1〜300番に初期化しますか？')) {
-                appData = { 
-                    current: '未設定', 
-                    waiting: Array.from({length: 300}, (_, i) => String(i + 1)), 
-                    canceled: [] 
-                };
+            if (confirm('すべてのデータをリセットしますか？')) {
+                appData = { current: '未設定', waiting: [], canceled: [] };
                 saveData();
             }
         }
