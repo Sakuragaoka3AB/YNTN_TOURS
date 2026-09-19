@@ -15,8 +15,13 @@
                 YNTN TOURS 3-A.B
             </h1>
             <!-- スタッフ用URL(?admin=1)のときだけ運営モードボタンを表示 -->
-            <div id="admin-mode-trigger" class="hidden">
-                <button onclick="switchTab('admin')" id="btn-admin" class="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm bg-slate-800 text-amber-300 border border-amber-500/30 font-semibold rounded-lg shadow transition">運営モード</button>
+            <div class="flex items-center gap-2">
+                <button onclick="loadData()" class="text-xs bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 px-2.5 py-1.5 rounded-lg shadow transition flex items-center gap-1">
+                    <span>🔄</span> 更新
+                </button>
+                <div id="admin-mode-trigger" class="hidden">
+                    <button onclick="switchTab('admin')" id="btn-admin" class="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm bg-slate-800 text-amber-300 border border-amber-500/30 font-semibold rounded-lg shadow transition">運営モード</button>
+                </div>
             </div>
         </div>
     </header>
@@ -115,7 +120,7 @@
 
                 <!-- 手動ステータス管理リスト -->
                 <div class="space-y-2">
-                    <label class="text-xs sm:text-sm font-semibold text-blue-200">全番号ステータス管理（終わった人は削除できます）</label>
+                    <label class="text-xs sm:text-sm font-semibold text-blue-200">全番号ステータス管理（キャンセル時刻も記録されます）</label>
                     <div id="admin-number-table" class="bg-slate-950 border border-slate-800 rounded-xl p-3 max-h-60 overflow-y-auto space-y-2">
                         <!-- 動的生成 -->
                     </div>
@@ -136,11 +141,23 @@
             document.getElementById('admin-mode-trigger').classList.remove('hidden');
         }
 
-        let appData = JSON.parse(localStorage.getItem('yntn_tours_data')) || {
+        let appData = {
             current: '未設定',
             waiting: [],
-            canceled: []
+            canceled: [] // 形式: [{num: '15', time: '14:32'}]
         };
+
+        function loadData() {
+            const saved = localStorage.getItem('yntn_tours_data');
+            if (saved) {
+                appData = JSON.parse(saved);
+                // 古いデータ形式（文字列の配列）だった場合の互換性対応
+                if (appData.canceled.length > 0 && typeof appData.canceled[0] === 'string') {
+                    appData.canceled = appData.canceled.map(num => ({ num: num, time: '--:--' }));
+                }
+            }
+            updateUI();
+        }
 
         function saveData() {
             localStorage.setItem('yntn_tours_data', JSON.stringify(appData));
@@ -183,10 +200,10 @@
             if (appData.canceled.length === 0) {
                 canceledListEl.innerHTML = '<span class="text-xs text-slate-500">キャンセルはありません</span>';
             } else {
-                appData.canceled.forEach(num => {
+                appData.canceled.forEach(item => {
                     const badge = document.createElement('span');
-                    badge.className = "bg-amber-950/60 text-amber-300 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold border border-amber-900/60 shadow-sm";
-                    badge.textContent = num;
+                    badge.className = "bg-amber-950/60 text-amber-300 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold border border-amber-900/60 shadow-sm flex items-center gap-1.5";
+                    badge.innerHTML = `<span>${item.num}番</span><span class="text-[10px] text-amber-400/70">(${item.time})</span>`;
                     canceledListEl.appendChild(badge);
                 });
             }
@@ -195,32 +212,44 @@
             document.getElementById('next-preview').textContent = appData.waiting.length > 0 ? appData.waiting[0] : 'なし';
 
             const adminTable = document.getElementById('admin-number-table');
-            adminTable.innerHTML = '';
-            
-            const allNums = [...appData.waiting, ...appData.canceled];
-            if (allNums.length === 0) {
-                adminTable.innerHTML = '<div class="text-xs text-slate-500 p-2">登録されている番号はありません</div>';
-            } else {
-                allNums.sort((a, b) => Number(a) - Number(b)).forEach(num => {
-                    const isCanceled = appData.canceled.includes(num);
-                    const row = document.createElement('div');
-                    row.className = "flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-sm gap-2";
-                    row.innerHTML = `
-                        <span class="font-bold text-white">${num}</span>
-                        <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end">
-                            <span class="text-xs px-2 py-1 rounded ${isCanceled ? 'bg-amber-950 text-amber-300 border border-amber-800/50' : 'bg-blue-950 text-blue-300 border border-blue-800/50'}">
-                                ${isCanceled ? 'キャンセル済み' : '受付待ち'}
-                            </span>
-                            <button onclick="toggleStatus('${num}')" class="text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded text-slate-300 border border-slate-700">切替</button>
-                            <button onclick="removeNumber('${num}')" class="text-xs bg-rose-950 hover:bg-rose-900 px-2.5 py-1 rounded text-rose-300 border border-rose-900/50">消す</button>
-                        </div>
-                    `;
-                    adminTable.appendChild(row);
-                });
+            if (adminTable) {
+                adminTable.innerHTML = '';
+                
+                // キャンセル済みリストの番号だけの配列を作る
+                const canceledNums = appData.canceled.map(item => item.num);
+                const allNums = [...appData.waiting, ...canceledNums];
+
+                if (allNums.length === 0) {
+                    adminTable.innerHTML = '<div class="text-xs text-slate-500 p-2">登録されている番号はありません</div>';
+                } else {
+                    allNums.sort((a, b) => Number(a) - Number(b)).forEach(num => {
+                        const isCanceled = canceledNums.includes(num);
+                        const canceledItem = appData.canceled.find(item => item.num === num);
+                        const timeStr = isCanceled && canceledItem ? ` キャンセル時刻: ${canceledItem.time}` : '';
+
+                        const row = document.createElement('div');
+                        row.className = "flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-sm gap-2";
+                        row.innerHTML = `
+                            <div>
+                                <span class="font-bold text-white">${num}</span>
+                                <span class="text-xs text-slate-400 ml-2">${timeStr}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end">
+                                <span class="text-xs px-2 py-1 rounded ${isCanceled ? 'bg-amber-950 text-amber-300 border border-amber-800/50' : 'bg-blue-950 text-blue-300 border border-blue-800/50'}">
+                                    ${isCanceled ? 'キャンセル済み' : '受付待ち'}
+                                </span>
+                                <button onclick="toggleStatus('${num}')" class="text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded text-slate-300 border border-slate-700">切替</button>
+                                <button onclick="removeNumber('${num}')" class="text-xs bg-rose-950 hover:bg-rose-900 px-2.5 py-1 rounded text-rose-300 border border-rose-900/50">消す</button>
+                            </div>
+                        `;
+                        adminTable.appendChild(row);
+                    });
+                }
             }
         }
 
         function requestCancel() {
+            loadData();
             const input = document.getElementById('cancel-input');
             const target = input.value.trim();
             if (!target) {
@@ -234,17 +263,27 @@
             }
 
             if (confirm(`${target}番をキャンセル扱いにしますか？`)) {
+                // 現在時刻を取得（例: 14:35）
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const timeString = `${hours}:${minutes}`;
+
                 appData.waiting = appData.waiting.filter(n => n !== target);
-                if (!appData.canceled.includes(target)) {
-                    appData.canceled.push(target);
+                
+                // すでにキャンセル済みに入っていなければ追加
+                if (!appData.canceled.some(item => item.num === target)) {
+                    appData.canceled.push({ num: target, time: timeString });
                 }
+                
                 input.value = '';
                 saveData();
-                alert(`${target}番のキャンセルを受け付けました。ご協力ありがとうございます！`);
+                alert(`${target}番のキャンセルを受け付けました（${timeString}）。ご協力ありがとうございます！`);
             }
         }
 
         function callNext() {
+            loadData();
             if (appData.waiting.length === 0) {
                 alert('呼べる番号がもうありません！');
                 return;
@@ -255,9 +294,11 @@
         }
 
         function addBatch(start, end) {
+            loadData();
             for (let i = start; i <= end; i++) {
                 const n = String(i);
-                if (!appData.waiting.includes(n) && !appData.canceled.includes(n) && appData.current !== n) {
+                const isCanceled = appData.canceled.some(item => item.num === n);
+                if (!appData.waiting.includes(n) && !isCanceled && appData.current !== n) {
                     appData.waiting.push(n);
                 }
             }
@@ -266,13 +307,15 @@
         }
 
         function addNumbers() {
+            loadData();
             const input = document.getElementById('add-number-input');
             const val = input.value.trim();
             if (!val) return;
 
             const nums = val.split(',').map(s => s.trim()).filter(s => s !== '');
             nums.forEach(n => {
-                if (!appData.waiting.includes(n) && !appData.canceled.includes(n)) {
+                const isCanceled = appData.canceled.some(item => item.num === n);
+                if (!appData.waiting.includes(n) && !isCanceled) {
                     appData.waiting.push(n);
                 }
             });
@@ -281,20 +324,24 @@
         }
 
         function toggleStatus(num) {
+            loadData();
             if (appData.waiting.includes(num)) {
                 appData.waiting = appData.waiting.filter(n => n !== num);
-                appData.canceled.push(num);
+                const now = new Date();
+                const timeString = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                appData.canceled.push({ num: num, time: timeString });
             } else {
-                appData.canceled = appData.canceled.filter(n => n !== num);
+                appData.canceled = appData.canceled.filter(item => item.num !== num);
                 appData.waiting.push(num);
             }
             saveData();
         }
 
         window.removeNumber = function(num) {
+            loadData();
             if (confirm(`${num}番をリストから削除しますか？`)) {
                 appData.waiting = appData.waiting.filter(n => n !== num);
-                appData.canceled = appData.canceled.filter(n => n !== num);
+                appData.canceled = appData.canceled.filter(item => item.num !== num);
                 if (appData.current === num) appData.current = '未設定';
                 saveData();
             }
@@ -309,12 +356,12 @@
 
         window.addEventListener('storage', (e) => {
             if (e.key === 'yntn_tours_data') {
-                appData = JSON.parse(e.newValue);
-                updateUI();
+                loadData();
             }
         });
 
-        updateUI();
+        setInterval(loadData, 1000);
+        loadData();
     </script>
 </body>
 </html>
