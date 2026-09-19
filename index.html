@@ -70,7 +70,7 @@
                         <span class="flex items-center gap-1.5">🪐 キャンセル済み番号</span>
                         <span id="canceled-count" class="text-xs bg-amber-950/60 border border-amber-900/50 px-2.5 py-0.5 rounded-full text-amber-300">0件</span>
                     </h3>
-                    <div id="canceled-list" class="flex flex-wrap gap-1.5 sm:gap-2 max-h-48 overflow-y-auto p-1">
+                    <div id="canceled-list" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
                         <!-- 動的に生成 -->
                     </div>
                 </div>
@@ -147,13 +147,22 @@
             canceled: [] // 形式: [{num: '15', time: '14:32'}]
         };
 
+        function getCurrentTimeString() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
         function loadData() {
             const saved = localStorage.getItem('yntn_tours_data');
             if (saved) {
                 appData = JSON.parse(saved);
-                // 古いデータ形式（文字列の配列）だった場合の互換性対応
+                // データの形式をチェックし、古い形式（文字列のまま）なら現在の時間を補う
                 if (appData.canceled.length > 0 && typeof appData.canceled[0] === 'string') {
-                    appData.canceled = appData.canceled.map(num => ({ num: num, time: '--:--' }));
+                    const currentTime = getCurrentTimeString();
+                    appData.canceled = appData.canceled.map(num => ({ num: num, time: currentTime }));
+                    saveData();
                 }
             }
             updateUI();
@@ -201,9 +210,9 @@
                 canceledListEl.innerHTML = '<span class="text-xs text-slate-500">キャンセルはありません</span>';
             } else {
                 appData.canceled.forEach(item => {
-                    const badge = document.createElement('span');
-                    badge.className = "bg-amber-950/60 text-amber-300 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold border border-amber-900/60 shadow-sm flex items-center gap-1.5";
-                    badge.innerHTML = `<span>${item.num}番</span><span class="text-[10px] text-amber-400/70">(${item.time})</span>`;
+                    const badge = document.createElement('div');
+                    badge.className = "bg-amber-950/60 text-amber-300 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border border-amber-900/60 shadow-sm flex items-center justify-between gap-3";
+                    badge.innerHTML = `<span>No. ${item.num}</span><span class="text-xs text-amber-200 font-mono bg-amber-900/50 px-2 py-0.5 rounded">🕒 ${item.time || '--:--'}</span>`;
                     canceledListEl.appendChild(badge);
                 });
             }
@@ -215,7 +224,6 @@
             if (adminTable) {
                 adminTable.innerHTML = '';
                 
-                // キャンセル済みリストの番号だけの配列を作る
                 const canceledNums = appData.canceled.map(item => item.num);
                 const allNums = [...appData.waiting, ...canceledNums];
 
@@ -225,19 +233,19 @@
                     allNums.sort((a, b) => Number(a) - Number(b)).forEach(num => {
                         const isCanceled = canceledNums.includes(num);
                         const canceledItem = appData.canceled.find(item => item.num === num);
-                        const timeStr = isCanceled && canceledItem ? ` キャンセル時刻: ${canceledItem.time}` : '';
+                        const timeStr = isCanceled && canceledItem ? `キャンセル時刻: ${canceledItem.time || '--:--'}` : '';
 
                         const row = document.createElement('div');
                         row.className = "flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-sm gap-2";
                         row.innerHTML = `
                             <div>
-                                <span class="font-bold text-white">${num}</span>
-                                <span class="text-xs text-slate-400 ml-2">${timeStr}</span>
+                                <span class="font-bold text-white">${num}番</span>
+                                <span class="text-xs text-amber-400 ml-2 font-mono">${timeStr}</span>
                             </div>
                             <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end">
                                 <span class="text-xs px-2 py-1 rounded ${isCanceled ? 'bg-amber-950 text-amber-300 border border-amber-800/50' : 'bg-blue-950 text-blue-300 border border-blue-800/50'}">
                                     ${isCanceled ? 'キャンセル済み' : '受付待ち'}
-                                </span>
+                                }</span>
                                 <button onclick="toggleStatus('${num}')" class="text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded text-slate-300 border border-slate-700">切替</button>
                                 <button onclick="removeNumber('${num}')" class="text-xs bg-rose-950 hover:bg-rose-900 px-2.5 py-1 rounded text-rose-300 border border-rose-900/50">消す</button>
                             </div>
@@ -263,15 +271,10 @@
             }
 
             if (confirm(`${target}番をキャンセル扱いにしますか？`)) {
-                // 現在時刻を取得（例: 14:35）
-                const now = new Date();
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                const timeString = `${hours}:${minutes}`;
+                const timeString = getCurrentTimeString();
 
                 appData.waiting = appData.waiting.filter(n => n !== target);
                 
-                // すでにキャンセル済みに入っていなければ追加
                 if (!appData.canceled.some(item => item.num === target)) {
                     appData.canceled.push({ num: target, time: timeString });
                 }
@@ -327,8 +330,7 @@
             loadData();
             if (appData.waiting.includes(num)) {
                 appData.waiting = appData.waiting.filter(n => n !== num);
-                const now = new Date();
-                const timeString = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                const timeString = getCurrentTimeString();
                 appData.canceled.push({ num: num, time: timeString });
             } else {
                 appData.canceled = appData.canceled.filter(item => item.num !== num);
