@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YNTN TOURS 3-A.B - リアルタイム受付・キャンセル管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+    <!-- ヘッダー -->
+    <header class="bg-indigo-600 shadow-lg p-4 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-wider">🚌 YNTN TOURS 3-A.B</h1>
+            <div class="space-x-2">
+                <button onclick="switchTab('customer')" id="btn-customer" class="px-3 py-1.5 text-sm bg-white text-indigo-700 font-semibold rounded-lg shadow transition">お客さん画面</button>
+                <button onclick="switchTab('admin')" id="btn-admin" class="px-3 py-1.5 text-sm bg-indigo-800 text-white font-semibold rounded-lg shadow transition">運営モード</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="max-w-4xl mx-auto flex-1 w-full p-4 space-y-6">
+
+        <!-- ================= お客さん画面 ================= -->
+        <section id="view-customer" class="space-y-6">
+            <!-- 現在呼び出し中 -->
+            <div class="bg-gradient-to-br from-indigo-800 to-slate-800 border border-indigo-500/30 rounded-2xl p-6 text-center shadow-2xl">
+                <h2 class="text-indigo-300 text-sm font-semibold uppercase tracking-widest mb-2">ただいまのご案内番号</h2>
+                <div id="current-display" class="text-6xl font-black tracking-tight text-white my-3">----</div>
+                <p id="current-msg" class="text-slate-300 text-sm">まもなくご案内いたします。足元にお気をつけてお越しください！</p>
+            </div>
+
+            <!-- キャンセル・行けなくなったとき -->
+            <div class="bg-rose-950/40 border border-rose-500/30 rounded-2xl p-5 shadow-lg">
+                <h3 class="text-rose-400 font-bold mb-2 flex items-center gap-2">⚠️ 時間に行けなくなった方へ</h3>
+                <p class="text-sm text-slate-300 mb-4">予約した時間に行けなくなった場合は、下のリストから自分の番号を選んでキャンセルボタンを押してください。次の人にすぐ枠が回ります。</p>
+                <div class="flex gap-2">
+                    <select id="cancel-select" class="bg-slate-900 border border-rose-500/50 rounded-lg px-3 py-2 text-white flex-1 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                        <option value="">キャンセルする番号を選ぶ</option>
+                    </select>
+                    <button onclick="requestCancel()" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-5 py-2 rounded-lg shadow transition">キャンセルする</button>
+                </div>
+            </div>
+
+            <!-- 現在の状況一覧 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-5 shadow">
+                    <h3 class="text-emerald-400 font-bold mb-3 flex items-center justify-between">
+                        <span>⏳ 受付待ち・進行中</span>
+                        <span id="waiting-count" class="text-xs bg-slate-700 px-2 py-0.5 rounded-full text-slate-300">0件</span>
+                    </h3>
+                    <div id="waiting-list" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
+                        <!-- 動的に生成 -->
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-5 shadow">
+                    <h3 class="text-rose-400 font-bold mb-3 flex items-center justify-between">
+                        <span>❌ キャンセル済み番号</span>
+                        <span id="canceled-count" class="text-xs bg-slate-700 px-2 py-0.5 rounded-full text-slate-300">0件</span>
+                    </h3>
+                    <div id="canceled-list" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
+                        <!-- 動的に生成 -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 運営モード ================= -->
+        <section id="view-admin" class="space-y-6 hidden">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl space-y-6">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-4">
+                    <h2 class="text-lg font-bold text-indigo-400">🛠️ 運営スタッフ用 コントロールパネル</h2>
+                    <button onclick="resetData()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded transition">データをリセット</button>
+                </div>
+
+                <!-- 番号の追加 -->
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-300">整理券番号を一括または個別で追加</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="add-number-input" placeholder="例: 1, 2, 3 または A-1" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button onclick="addNumbers()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2 rounded-lg shadow transition">追加する</button>
+                    </div>
+                </div>
+
+                <!-- 次の番号を呼ぶ -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <div class="text-xs text-slate-400">次に呼び出す番号</div>
+                        <div id="next-preview" class="text-2xl font-bold text-white">--</div>
+                    </div>
+                    <button onclick="callNext()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition flex items-center gap-2">
+                        <span>📢 次の番号を呼ぶ</span>
+                    </button>
+                </div>
+
+                <!-- 手動ステータス管理リスト -->
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-300">すべての番号ステータス管理（クリックで切り替え）</label>
+                    <div id="admin-number-table" class="bg-slate-900 border border-slate-700 rounded-xl p-3 max-h-60 overflow-y-auto space-y-2">
+                        <!-- 動的生成 -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-4 text-xs text-slate-500 border-t border-slate-800 mt-auto">
+        YNTN TOURS 3-A.B Attraction Management System
+    </footer>
+
+    <!-- JavaScript 制御ロジック -->
+    <script>
+        // 初期データ（LocalStorageから読み込み、なければデフォルト）
+        let appData = JSON.parse(localStorage.getItem('yntn_tours_data')) || {
+            current: '未設定',
+            waiting: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+            canceled: []
+        };
+
+        // データの保存と同期
+        function saveData() {
+            localStorage.setItem('yntn_tours_data', JSON.stringify(appData));
+            updateUI();
+        }
+
+        // タブ切り替え
+        function switchTab(tab) {
+            const customerView = document.getElementById('view-customer');
+            const adminView = document.getElementById('view-admin');
+            const btnCustomer = document.getElementById('btn-customer');
+            const btnAdmin = document.getElementById('btn-admin');
+
+            if (tab === 'customer') {
+                customerView.classList.remove('hidden');
+                adminView.classList.add('hidden');
+                btnCustomer.className = "px-3 py-1.5 text-sm bg-white text-indigo-700 font-semibold rounded-lg shadow transition";
+                btnAdmin.className = "px-3 py-1.5 text-sm bg-indigo-800 text-white font-semibold rounded-lg shadow transition";
+            } else {
+                customerView.classList.add('hidden');
+                adminView.classList.remove('hidden');
+                btnCustomer.className = "px-3 py-1.5 text-sm bg-indigo-800 text-white font-semibold rounded-lg shadow transition";
+                btnAdmin.className = "px-3 py-1.5 text-sm bg-white text-indigo-700 font-semibold rounded-lg shadow transition";
+            }
+        }
+
+        // 画面の描画更新
+        function updateUI() {
+            // 現在の番号
+            document.getElementById('current-display').textContent = appData.current;
+
+            // 待ちリスト
+            const waitingListEl = document.getElementById('waiting-list');
+            waitingListEl.innerHTML = '';
+            document.getElementById('waiting-count.textContent = appData.waiting.length + '件';
+            
+            // キャンセルセレクトボックスの更新
+            const cancelSelect = document.getElementById('cancel-select');
+            cancelSelect.innerHTML = '<option value="">キャンセルする番号を選ぶ</option>';
+
+            if (appData.waiting.length === 0) {
+                waitingListEl.innerHTML = '<span class="text-xs text-slate-500">待ち番号はありません</span>';
+            } else {
+                appData.waiting.forEach(num => {
+                    // 待ちリストのバッジ
+                    const badge = document.createElement('span');
+                    badge.className = "bg-slate-700 text-slate-200 px-3 py-1 rounded-lg text-sm font-bold border border-slate-600";
+                    badge.textContent = num;
+                    waitingListEl.appendChild(badge);
+
+                    // キャンセル選択肢
+                    const option = document.createElement('option');
+                    option.value = num;
+                    option.textContent = num + '番';
+                    cancelSelect.appendChild(option);
+                });
+            }
+            document.getElementById('waiting-count').textContent = appData.waiting.length + '件';
+
+            // キャンセルリスト
+            const canceledListEl = document.getElementById('canceled-list');
+            canceledListEl.innerHTML = '';
+            if (appData.canceled.length === 0) {
+                canceledListEl.innerHTML = '<span class="text-xs text-slate-500">キャンセルはありません</span>';
+            } else {
+                appData.canceled.forEach(num => {
+                    const badge = document.createElement('span');
+                    badge.className = "bg-rose-950/80 text-rose-300 px-3 py-1 rounded-lg text-sm font-bold border border-rose-800";
+                    badge.textContent = num;
+                    canceledListEl.appendChild(badge);
+                });
+            }
+            document.getElementById('canceled-count').textContent = appData.canceled.length + '件';
+
+            // 運営モードのプレビュー
+            const nextPreview = document.getElementById('next-preview');
+            nextPreview.textContent = appData.waiting.length > 0 ? appData.waiting[0] : 'なし';
+
+            // 運営モードの全管理テーブル
+            const adminTable = document.getElementById('admin-number-table');
+            adminTable.innerHTML = '';
+            
+            const allNums = [...appData.waiting, ...appData.canceled];
+            if (allNums.length === 0) {
+                adminTable.innerHTML = '<div class="text-xs text-slate-500 p-2">登録されている番号はありません</div>';
+            } else {
+                allNums.sort().forEach(num => {
+                    const isCanceled = appData.canceled.includes(num);
+                    const row = document.createElement('div');
+                    row.className = "flex justify-between items-center bg-slate-800 p-2 rounded-lg border border-slate-700 text-sm";
+                    row.innerHTML = `
+                        <span class="font-bold text-white">No. ${num}</span>
+                        <div class="space-x-1">
+                            <span class="text-xs px-2 py-1 rounded ${isCanceled ? 'bg-rose-900 text-rose-200' : 'bg-emerald-900 text-emerald-200'}">
+                                ${isCanceled ? 'キャンセル済み' : '受付待ち'}
+                            </span>
+                            <button onclick="toggleStatus('${num}')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-300">切替</button>
+                            <button onclick="removeNumber('${num}')" class="text-xs bg-rose-900/60 hover:bg-rose-800 px-2 py-1 rounded text-rose-300">削除</button>
+                        </div>
+                    `;
+                    adminTable.appendChild(row);
+                });
+            }
+        }
+
+        // お客さんからのキャンセル申請
+        function requestCancel() {
+            const select = document.getElementById('cancel-select');
+            const target = select.value;
+            if (!target) {
+                alert('キャンセルする番号を選択してください。');
+                return;
+            }
+
+            if (confirm(`${target}番をキャンセル扱いにしますか？`)) {
+                appData.waiting = appData.waiting.filter(n => n !== target);
+                if (!appData.canceled.includes(target)) {
+                    appData.canceled.push(target);
+                }
+                saveData();
+                alert(`${target}番のキャンセルを受け付けました。ご協力ありがとうございます！`);
+            }
+        }
+
+        // 次の番号を呼ぶ
+        function callNext() {
+            if (appData.waiting.length === 0) {
+                alert('呼べる番号がもうありません！');
+                return;
+            }
+            const nextNum = appData.waiting.shift();
+            appData.current = nextNum;
+            saveData();
+        }
+
+        // 番号の追加
+        function addNumbers() {
+            const input = document.getElementById('add-number-input');
+            const val = input.value.trim();
+            if (!val) return;
+
+            // カンマ区切りで複数追加可能
+            const nums = val.split(',').map(s => s.trim()).filter(s => s !== '');
+            nums.forEach(n => {
+                if (!appData.waiting.includes(n) && !appData.canceled.includes(n)) {
+                    appData.waiting.push(n);
+                }
+            });
+            input.value = '';
+            saveData();
+        }
+
+        // ステータス手動切替
+        function toggleStatus(num) {
+            if (appData.waiting.includes(num)) {
+                appData.waiting = appData.waiting.filter(n => n !== num);
+                appData.canceled.push(num);
+            } else {
+                appData.canceled = appData.canceled.filter(n => n !== num);
+                appData.waiting.push(num);
+            }
+            saveData();
+        }
+
+        // 番号の完全削除
+        function removeNumber(num) {
+            if (confirm(`${num}番を完全に削除しますか？`)) {
+                appData.waiting = appData.waiting.filter(n => n !== num);
+                appData.canceled = appData.canceled.filter(n => n !== num);
+                if (appData.current === num) appData.current = '未設定';
+                saveData();
+            }
+        }
+
+        // データリセット
+        function resetData() {
+            if (confirm('すべてのデータを初期化しますか？')) {
+                appData = { current: '未設定', waiting: ['1','2','3','4','5'], canceled: [] };
+                saveData();
+            }
+        }
+
+        // 他のタブやスマホで変更されたときにリアルタイム連動する仕組み
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'yntn_tours_data') {
+                appData = JSON.parse(e.newValue);
+                updateUI();
+            }
+        });
+
+        // 初回ロード時
+        updateUI();
+    </script>
+</body>
+</html>
